@@ -32,11 +32,11 @@ Pino and Winston are included as dependencies. No additional installs required.
 ## Quick Start
 
 ```javascript
-import { battleRoyale } from '@flowrdesk/test-silo-engine'
+import { battleRoyale } from "@flowrdesk/test-silo-engine";
 
 // Run all three engines head-to-head
 // Default: 1,000,000 logs per engine
-battleRoyale()
+battleRoyale();
 ```
 
 Run it:
@@ -54,10 +54,10 @@ node --expose-gc your_file.js
 Runs Silo, Pino, and Winston back-to-back under identical conditions. Same log payload, same flush guarantee, GC forced between each engine. Reports LPS, memory, and timing for each.
 
 ```javascript
-import { battleRoyale } from '@flowrdesk/test-silo-engine'
+import { battleRoyale } from "@flowrdesk/test-silo-engine";
 
-battleRoyale()              // 1,000,000 logs (default)
-battleRoyale(10_000_000)    // 10M logs
+battleRoyale(); // 1,000,000 logs (default)
+battleRoyale(10_000_000); // 10M logs
 ```
 
 ---
@@ -67,10 +67,10 @@ battleRoyale(10_000_000)    // 10M logs
 Runs Silo in isolation.
 
 ```javascript
-import { testSilo } from '@flowrdesk/test-silo-engine'
+import { testSilo } from "@flowrdesk/test-silo-engine";
 
-testSilo()                  // 1,000,000 logs (default)
-testSilo(1_000_000_000)     // 1B logs — allow ~15-28 minutes
+testSilo(); // 1,000,000 logs (default)
+testSilo(1_000_000_000); // 1B logs — allow ~15-28 minutes
 ```
 
 ---
@@ -80,10 +80,10 @@ testSilo(1_000_000_000)     // 1B logs — allow ~15-28 minutes
 Runs Pino in isolation.
 
 ```javascript
-import { testPino } from '@flowrdesk/test-silo-engine'
+import { testPino } from "@flowrdesk/test-silo-engine";
 
-testPino()                  // 1,000,000 logs (default)
-testPino(25_000_000)        // 25M logs
+testPino(); // 1,000,000 logs (default)
+testPino(25_000_000); // 25M logs
 ```
 
 > **Note:** Pino requires significant heap at scale. Use `--max-old-space-size=12288` for runs above 10M logs.
@@ -95,10 +95,10 @@ testPino(25_000_000)        // 25M logs
 Runs Winston in isolation.
 
 ```javascript
-import { testWinston } from '@flowrdesk/test-silo-engine'
+import { testWinston } from "@flowrdesk/test-silo-engine";
 
-testWinston()               // 1,000,000 logs (default)
-testWinston(25_000_000)     // 25M logs
+testWinston(); // 1,000,000 logs (default)
+testWinston(25_000_000); // 25M logs
 ```
 
 > **Note:** Winston is significantly slower than Silo and Pino. A 25M log run takes approximately 8 minutes.
@@ -108,35 +108,50 @@ testWinston(25_000_000)     // 25M logs
 ## Example: Run All Four Tests
 
 ```javascript
-import { battleRoyale, testSilo, testPino, testWinston } from '@flowrdesk/test-silo-engine'
+import {
+  battleRoyale,
+  testSilo,
+  testPino,
+  testWinston,
+} from "@flowrdesk/test-silo-engine";
 
-const LOG_COUNT = 10_000_000
+const LOG_COUNT = 10_000_000;
 
-console.log('--- BATTLE ROYALE ---')
-await battleRoyale(LOG_COUNT)
+console.log("--- BATTLE ROYALE ---");
+await battleRoyale(LOG_COUNT);
 
-console.log('--- SILO SOLO ---')
-await testSilo(LOG_COUNT)
+console.log("--- SILO SOLO ---");
+await testSilo(LOG_COUNT);
 
-console.log('--- PINO SOLO ---')
-await testPino(LOG_COUNT)
+console.log("--- PINO SOLO ---");
+await testPino(LOG_COUNT);
 
-console.log('--- WINSTON SOLO ---')
-await testWinston(LOG_COUNT)
+console.log("--- WINSTON SOLO ---");
+await testWinston(LOG_COUNT);
 ```
 
 ---
 
 ## What Gets Measured
 
-Every test reports:
+### The Battle Royale test reports:
 
-| Metric | Description |
-|---|---|
-| `time` | Total elapsed time in seconds |
-| `lps` | Logs per second — throughput |
-| `cpu` | CPU usage during the run |
-| `mem` | Heap growth in MB from start to finish |
+| Metric       | Description                                   |
+| ------------ | --------------------------------------------- |
+| `lps - avg`  | The average logs per seconds over 5 runs      |
+| `best`       | The best logs per second out of 5 Runs        |
+| `worst`      | The worst Logs per second out of 5 Runs       |
+| `Mem - avg`  | The average memory used over 5 runs           |
+| `Total Time` | The total time it took to complete all 5 runs |
+
+### The isolation test reports:
+
+| Metric | Description                            |
+| ------ | -------------------------------------- |
+| `time` | Total elapsed time in seconds          |
+| `lps`  | Logs per second — throughput           |
+| `cpu`  | CPU usage during the run               |
+| `mem`  | Heap growth in MB from start to finish |
 
 All measurements use `process.hrtime.bigint()` for timing and `process.memoryUsage().heapUsed` for memory. GC is forced before each run when `--expose-gc` is available.
 
@@ -146,29 +161,37 @@ All measurements use `process.hrtime.bigint()` for timing and `process.memoryUsa
 
 Results from our reference hardware. Your numbers will vary based on CPU, disk speed, and available RAM.
 
+### Battle Royale — 100,000 Logs
+
+| Engine   | LPS - Avg   | Best        | Worst       | Avg Memory   | Total Time |
+| -------- | ----------- | ----------- | ----------- | ------------ | ---------- |
+| **Silo** | **506,538** | **606,405** | **296,617** | **86.80 MB** | 1.20 secs  |
+| Pino     | 176,145     | 235,772     | 143,143     | 69.17 MB     | 3.06 secs  |
+| Winston  | 71,443      | 73,157      | 69,766      | 22.83 MB     | 7.10 secs  |
+
 ### Battle Royale — 1,000,000 Logs
 
-| Engine | LPS | Memory |
-|---|---|---|
-| **Silo** | **560,823** | **100 MB** |
-| Pino | 138,265 | 125 MB |
-| Winston | 81,087 | 49 MB |
+| Engine   | LPS - Avg   | Best        | Worst       | Avg Memory    | Total Time |
+| -------- | ----------- | ----------- | ----------- | ------------- | ---------- |
+| **Silo** | **457,754** | **585,949** | **377,351** | **317.86 MB** | 11.33 secs |
+| Pino     | 150,843     | 166,224     | 144,342     | 215.08 MB     | 33.68 secs |
+| Winston  | 75,505      | 78,067      | 73,560      | 137.74 MB     | 66.44 secs |
 
-### Individual Engine — 10,000,000 Logs
+### Battle Royale — 10,000,000 Logs
 
-| Engine | LPS | Memory |
-|---|---|---|
-| **Silo** | **830,867** | **145 MB** |
-| Pino | 135,206 | 1,061 MB |
-| Winston | 84,734 | 44 MB |
+| Engine   | LPS - Avg   | Best        | Worst       | Avg Memory      | Total Time  |
+| -------- | ----------- | ----------- | ----------- | --------------- | ----------- |
+| **Silo** | **403,827** | **411,095** | **395,535** | **308.89 MB**   | 123.91 secs |
+| Pino     | 143,928     | 148,514     | 141,799     | 1,696.81 MB     | 350.51 secs |
+| Winston  | 80,044      | 80,864      | 79,468      | 1,301.36 MB     | 625.37 secs |
 
-### Individual Engine — 25,000,000 Logs
+### Battle Royale — 25,000,000 Logs
 
-| Engine | LPS | Memory | Completes? |
-|---|---|---|---|
-| **Silo** | **TBD** | **TBD** | ✅ |
-| Pino | — | 2,692 MB | ⚠️ Requires 12GB heap |
-| Winston | — | — | ⚠️ Est. 8+ minutes |
+| Engine   | LPS - Avg   | Best        | Worst       | Avg Memory      | Total Time    |
+| -------- | ----------- | ----------- | ----------- | --------------- | ------------- |
+| **Silo** | **420,836** | **445,849** | **393,658** | **296.18 MB**   | 297.77 secs   |
+| Pino     | 117,573     | 126,362     | 94,856      | 3,937.00 MB     | 1,091.88 secs |
+| Winston  | 54,294      | 64,584      | 40,603      | 3,244.94 MB     | 2,376.68 secs |
 
 > Silo 100M and 1B results are available in the [@flowrdesk/silo](https://www.npmjs.com/package/@flowrdesk/silo) package benchmarks.
 
@@ -178,9 +201,9 @@ Results from our reference hardware. Your numbers will vary based on CPU, disk s
 
 Each engine writes to its own folder during testing:
 
-- Silo → `.logs/`
-- Pino → `pino_test/`
-- Winston → `winston_test/`
+- Silo → `tests_silo/`
+- Pino → `tests_pino/`
+- Winston → `tests_winston/`
 
 These folders are safe to delete after testing.
 
@@ -190,10 +213,10 @@ These folders are safe to delete after testing.
 
 This package is maintained by [Flowrdesk LLC](https://flowrdesk.com) as part of the Silo Series ecosystem.
 
-| Package | Description |
-|---|---|
+| Package                                                            | Description             |
+| ------------------------------------------------------------------ | ----------------------- |
 | [`@flowrdesk/silo`](https://www.npmjs.com/package/@flowrdesk/silo) | The core logging engine |
-| `@flowrdesk/test-silo-engine` | This benchmark suite |
+| `@flowrdesk/test-silo-engine`                                      | This benchmark suite    |
 
 ---
 

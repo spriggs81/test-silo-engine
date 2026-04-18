@@ -48,12 +48,13 @@ function avg(arr) { return arr.reduce((a, b) => a + b, 0) / arr.length; }
 function min(arr) { return Math.min(...arr); }
 function max(arr) { return Math.max(...arr); }
 
-function printResults(name, lpsArr, memArr) {
+function printResults(name, lpsArr, memArr, time = false) {
     const avgLps = Math.floor(avg(lpsArr));
     const memAvg = avg(memArr).toFixed(2);
     console.log(`\n🏆  ${name}`);
     console.log(`    LPS  — avg: ${avgLps.toLocaleString()}  |  best: ${Math.floor(max(lpsArr)).toLocaleString()}  |  worst: ${Math.floor(min(lpsArr)).toLocaleString()}`);
     console.log(`    Mem  — avg: +${memAvg} MB  (across ${RUNS} runs)`);
+    if(time) console.log(`    Total Time: ${time.toFixed(4)}`)
 }
 
 // ── Engine Runners ───────────────────────────────────────────
@@ -62,32 +63,41 @@ async function runSilo(targetLogs) {
     configuration({setDir:('tests_silo')})
     const TARGET_LOGS = targetLogs
     const lpsArr = [], memArr = [];
-
+    const startTime = process.hrtime.bigint()
+    
     for (let r = 0; r < RUNS; r++) {
         forceGC();
         const logger = new Logs({ filename: `battle_test_silo_r${r}`, toFile: true, toTerminal: false });
         const memInit = process.memoryUsage().heapUsed;
         const start = performance.now();
+        let peakMem = process.memoryUsage().heapUsed
+        const checkAt = Math.max(10, Math.floor(TARGET_LOGS / 500))
 
         for (let i = 0; i < TARGET_LOGS; i++) {
             await logger.file(LOG_MSG);
+            if(i % checkAt === 0) {
+                const currentMem = process.memoryUsage().heapUsed
+                if(currentMem > peakMem) peakMem = currentMem
+            }
         }
         await logger.flush();
 
         const elapsed = (performance.now() - start) / 1000;
-        const memDelta = (process.memoryUsage().heapUsed - memInit) / 1024 / 1024;
+        const memDelta = (peakMem - memInit) / 1024 / 1024;
         lpsArr.push(TARGET_LOGS / elapsed);
         memArr.push(memDelta);
     }
-
-    printResults('SILO ENGINE', lpsArr, memArr);
+    const endTime = process.hrtime.bigint()
+    
+    printResults('SILO ENGINE', lpsArr, memArr, Number(endTime - startTime) / 1e9);
 }
 
 async function runPino(targetLogs) {
     const filePath = path.join(process.cwd(), '/tests_pino')
-    mkdir(filePath,  { recursive: true })
+    await mkdir(filePath,  { recursive: true })
     const TARGET_LOGS = targetLogs
     const lpsArr = [], memArr = [];
+    const startTime = process.hrtime.bigint()
 
     for (let r = 0; r < RUNS; r++) {
         forceGC();
@@ -96,9 +106,15 @@ async function runPino(targetLogs) {
 
         const memInit = process.memoryUsage().heapUsed;
         const start = performance.now();
+        let peakMem = process.memoryUsage().heapUsed
+        const checkAt = Math.max(10, Math.floor(TARGET_LOGS / 500))
 
         for (let i = 0; i < TARGET_LOGS; i++) {
             logger.info(LOG_MSG);
+            if(i % checkAt === 0) {
+                const currentMem = process.memoryUsage().heapUsed
+                if(currentMem > peakMem) peakMem = currentMem
+            }
         }
 
         // Wait for the underlying stream to fully drain and close
@@ -108,18 +124,20 @@ async function runPino(targetLogs) {
         });
 
         const elapsed = (performance.now() - start) / 1000;
-        const memDelta = (process.memoryUsage().heapUsed - memInit) / 1024 / 1024;
+        const memDelta = (peakMem - memInit) / 1024 / 1024;
         lpsArr.push(TARGET_LOGS / elapsed);
         memArr.push(memDelta);
     }
+    const endTime = process.hrtime.bigint()
 
-    printResults('PINO (Standard)', lpsArr, memArr);
+    printResults('PINO (Standard)', lpsArr, memArr, Number(endTime - startTime) / 1e9);
 }
 
 async function runWinston(targetLogs) {
     const filePath = path.join(process.cwd(), '/tests_winston/')
     const TARGET_LOGS = targetLogs;
     const lpsArr = [], memArr = [];
+    const startTime = process.hrtime.bigint()
 
     for (let r = 0; r < RUNS; r++) {
         forceGC();
@@ -140,9 +158,15 @@ async function runWinston(targetLogs) {
 
         const memInit = process.memoryUsage().heapUsed;
         const start = performance.now();
+        let peakMem = process.memoryUsage().heapUsed
+        const checkAt = Math.max(10, Math.floor(TARGET_LOGS / 500))
 
         for (let i = 0; i < TARGET_LOGS; i++) {
             const canWrite = logger.info(LOG_MSG);
+            if(i % checkAt === 0) {
+                const currentMem = process.memoryUsage().heapUsed
+                if(currentMem > peakMem) peakMem = currentMem
+            }
             
             // Critical: If the stream is full, wait for it to clear
             if (!canWrite) {
@@ -162,51 +186,20 @@ async function runWinston(targetLogs) {
         });
 
         const elapsed = (performance.now() - start) / 1000;
-        const memDelta = (process.memoryUsage().heapUsed - memInit) / 1024 / 1024;
+        const memDelta = (peakMem - memInit) / 1024 / 1024;
         
         lpsArr.push(TARGET_LOGS / elapsed);
         memArr.push(memDelta);
     }
+    const endTime = process.hrtime.bigint()
 
-    printResults('WINSTON (Standard)', lpsArr, memArr);
+    printResults('WINSTON (Standard)', lpsArr, memArr, Number(endTime - startTime) / 1e9);
 }
-// async function runWinston(targetLogs) {
-//     const TARGET_LOGS = targetLogs
-//     const lpsArr = [], memArr = [];
-
-//     for (let r = 0; r < RUNS; r++) {
-//         forceGC();
-
-//         const fileTransport = new winston.transports.File({ filename: `bench_winston_r${r}.log` });
-//         const logger = winston.createLogger({ transports: [fileTransport] });
-
-//         const memInit = process.memoryUsage().heapUsed;
-//         const start = performance.now();
-
-//         for (let i = 0; i < TARGET_LOGS; i++) {
-//             logger.info(LOG_MSG);
-//         }
-
-//         // Wait for Winston's internal stream to drain — no hardcoded sleeps
-//         await new Promise((resolve, reject) => {
-//             fileTransport.once('finish', resolve);
-//             fileTransport.once('error', reject);
-//             logger.end();
-//         });
-//         logger.close()
-
-//         const elapsed = (performance.now() - start) / 1000;
-//         const memDelta = (process.memoryUsage().heapUsed - memInit) / 1024 / 1024;
-//         lpsArr.push(TARGET_LOGS / elapsed);
-//         memArr.push(memDelta);
-//     }
-
-//     printResults('WINSTON (Standard)', lpsArr, memArr);
-// }
 
 // ── Main ─────────────────────────────────────────────────────
 
 async function runBattle(targetLogs) {
+    const startTime = process.hrtime.bigint()
     console.log(`\n🚀  BATTLE ROYALE — SILO vs PINO vs WINSTON`);
     console.log(`    ${targetLogs.toLocaleString()} logs × ${RUNS} runs each`);
     console.log(`    All engines measured to full disk flush completion`);
@@ -216,8 +209,12 @@ async function runBattle(targetLogs) {
     await runPino(targetLogs);
     await runWinston(targetLogs);
 
+    const endTime = process.hrtime.bigint()
+    const totalTime = Number(endTime - startTime) / 1e9
     console.log(`\n────────────────────────────────────────────────────`);
+    console.log('Total Test Time in Seconds: ',totalTime.toFixed(4))
     console.log(`✅  Done. All temp log files can be deleted safely.\n`);
+    console.log(`Please feel free to delete the following folders and their files:\ntests_pino\t|\ttests_silo\t|\ttests_winston`)
 }
 
 export const battleRoyale = async (targetLogs = 1_000_000) => {

@@ -31,6 +31,7 @@ const clearMemory = () => {
 };
 
 export const testPino = async (LOG_COUNT = 1_000_000) => {
+    const callOutAt = Math.max(Math.floor(LOG_COUNT / 10), 1)
     await mkdir(path.dirname(FILE_PATH), { recursive: true });
     // sync: false is Pino's high-performance mode
     const logger = pino(pino.destination({ dest: FILE_PATH, sync: false }));
@@ -46,9 +47,18 @@ export const testPino = async (LOG_COUNT = 1_000_000) => {
     let endUsage = { user: 0, system: 0 };
 
     try {
+        let peakMem = process.memoryUsage().heapUsed
+        const checkAt = Math.max(10, Math.floor(LOG_COUNT / 500))
         console.log(`🚀 PINO: Executing ${LOG_COUNT.toLocaleString()} logs...`);
         for (let i = 0; i < LOG_COUNT; i++) {
-            logger.info({ iteration: (i + 1), msg: "demo test log entry", val: 0.123456789 });
+            logger.info({ iteration: (i + 1), msg: "solo demo test log entry", val: 0.123456789 });
+            if(i % checkAt === 0){
+                const currentMem = process.memoryUsage().heapUsed
+                if(currentMem > peakMem) peakMem = currentMem
+            }
+            if((i + 1) % callOutAt === 0){
+                process.stdout.write(`\r Logs Processed: ${i + 1}`)
+            }
         }
         await new Promise(r => logger.flush(r));
         
@@ -61,8 +71,8 @@ export const testPino = async (LOG_COUNT = 1_000_000) => {
         console.table({
             time: timeInSecs.toFixed(4),
             lps: Math.round(LOG_COUNT / timeInSecs).toLocaleString(),
-            cpu: (((endUsage.user + endUsage.system) / (timeInSecs * 1000000))).toFixed(2) + '%',
-            mem: ((endMem - startMem) / 1024 / 1024).toFixed(2) + ' MB'
+            cpu: (((endUsage.user + endUsage.system) / (timeInSecs * 1000000)) * 100).toFixed(0) + '%',
+            mem: ((peakMem - startMem) / 1024 / 1024).toFixed(2) + ' MB'
         });
     } catch (err) {
         console.error(`❌ PINO FAILED`);console.table({

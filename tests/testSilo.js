@@ -28,6 +28,7 @@ const clearMemory = () => {
 };
 
 export const testSilo = async (LOG_COUNT = 1_000_000) => {
+    const callOutAt = Math.max(Math.floor(LOG_COUNT / 10), 1)
     const myLogger = new Logs({
         filename: 'silo_solo_test',
         level: 30,
@@ -45,10 +46,18 @@ export const testSilo = async (LOG_COUNT = 1_000_000) => {
     try {
         console.log('🧹 GC Clearing Memory')
         clearMemory()
+        let peakMem = process.memoryUsage().heapUsed
+        const checkAt = Math.max(10,Math.floor(LOG_COUNT / 500))
         console.log(`🚀 SILO: Executing ${LOG_COUNT.toLocaleString()} logs...`);
         for (let i = 0; i < LOG_COUNT; i++) {
-            // await myLogger.waitForQueueSpace(); // This is the logic we're testing
-            await myLogger.file({ iteration: (i + 1), msg: "demo test log entry", val: 0.123456789 });
+            await myLogger.file({ iteration: (i + 1), msg: "solo demo test log entry", val: 0.123456789 });
+            if(i % checkAt === 0){
+                const currentMem = process.memoryUsage().heapUsed
+                if(currentMem > peakMem) peakMem = currentMem
+            }
+            if((i + 1) % callOutAt === 0){
+                process.stdout.write(`\r Logs Processed: ${i + 1}`)
+            }
         }
         await myLogger.flush();
 
@@ -61,8 +70,8 @@ export const testSilo = async (LOG_COUNT = 1_000_000) => {
         console.table({
             time: timeInSecs.toFixed(4),
             lps: Math.round(LOG_COUNT / timeInSecs).toLocaleString(),
-            cpu: (((endUsage.user + endUsage.system) / (timeInSecs * 1000000))).toFixed(2) + '%',
-            mem: ((endMem - startMem) / 1024 / 1024).toFixed(2) + ' MB'
+            cpu: (((endUsage.user + endUsage.system) / (timeInSecs * 1000000)) * 100).toFixed(0) + '%',
+            mem: ((peakMem - startMem) / 1024 / 1024).toFixed(2) + ' MB'
         });
     } catch (err) {
         console.error(`❌ SILO FAILED`);

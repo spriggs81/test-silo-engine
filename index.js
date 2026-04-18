@@ -21,5 +21,3 @@ import { testWinston } from "./tests/testWinston.js";
 import { testSilo } from "./tests/testSilo.js";
 
 export {battleRoyale, testPino, testWinston, testSilo}
-
-// testSilo()

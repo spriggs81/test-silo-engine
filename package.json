@@ -24,5 +24,11 @@
     "@flowrdesk/silo": "latest",
     "pino": "latest",
     "winston": "latest"
-  }
+  },
+  "funding": [
+    {
+      "type": "patreon",
+      "url": "https://buymeacoffee.com/flowrdesk"
+    }
+  ]
 }
